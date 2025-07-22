@@ -1,0 +1,441 @@
+
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Menstrual Cycle Tracker</title>
+    <script src="https://cdn.tailwindcss.com/3.4.16"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: { primary: "#f9a8d4", secondary: "#f0abfc" },
+                    borderRadius: {
+                        none: "0px",
+                        sm: "4px",
+                        DEFAULT: "8px",
+                        md: "12px",
+                        lg: "16px",
+                        xl: "20px",
+                        "2xl": "24px",
+                        "3xl": "32px",
+                        full: "9999px",
+                        button: "8px",
+                    },
+                },
+            },
+        };
+    </script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Pacifico&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap"
+        rel="stylesheet" />
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.5.0/fonts/remixicon.css" rel="stylesheet" />
+    <style>
+        :where([class^="ri-"])::before {
+            content: "\f3c2";
+        }
+
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #fdf2f8;
+        }
+
+        .date-input::-webkit-calendar-picker-indicator {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="15" viewBox="0 0 24 24"><path fill="%23f9a8d4" d="M20 3h-1V1h-2v2H7V1H5v2H4c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 18H4V8h16v13z"/></svg>');
+        }
+
+        input[type="number"]::-webkit-inner-spin-button,
+        input[type="number"]::-webkit-outer-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        .custom-checkbox {
+            display: inline-block;
+            width: 20px;
+            height: 20px;
+            background-color: white;
+            border: 2px solid #f9a8d4;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .custom-checkbox.checked::after {
+            content: "";
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background-color: #f9a8d4;
+            border-radius: 2px;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+        }
+
+        .calendar-day {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .calendar-day.period {
+            background-color: rgba(249, 168, 212, 0.6);
+        }
+
+        .calendar-day.fertile {
+            background-color: rgba(240, 171, 252, 0.4);
+        }
+
+        .calendar-day.ovulation {
+            background-color: rgba(240, 171, 252, 0.8);
+        }
+
+        .calendar-day.today {
+            border: 2px solid #f9a8d4;
+            font-weight: bold;
+        }
+
+        .calendar-day:hover {
+            background-color: rgba(249, 168, 212, 0.3);
+        }
+
+        .symptom-icon {
+            transition: all 0.2s;
+        }
+
+        .symptom-icon.active {
+            background-color: rgba(249, 168, 212, 0.2);
+            border-color: #f9a8d4;
+        }
+
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 50;
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            width: 90%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+    </style>
+</head>
+
+<body>
+    <header class="bg-white shadow-sm py-4 px-6 fixed w-full">
+        <div class="container mx-auto flex justify-between items-center">
+            <h1 class="text-2xl font-['Pacifico'] text-primary">Cycle Analytics</h1>
+            <div class="flex items-center space-x-4">
+                <button id="feedbackBtn"
+                    class="w-10 h-10 flex items-center justify-center rounded-full bg-pink-50 text-primary hover:bg-pink-100 transition-colors">
+                    <i class="ri-feedback-line ri-lg"></i>
+                </button>
+                <button id="chatbotBtn"
+                    class="w-10 h-10 flex items-center justify-center rounded-full bg-pink-50 text-primary hover:bg-pink-100 transition-colors">
+                    <i class="ri-robot-line ri-lg"></i>
+                </button>
+            </div>
+        </div>
+    </header>
+    <main class="container mx-auto px-6 py-8">
+        <div class="flex flex-col items-center h-screen justify-center w-full">
+            <div class="bg-white rounded-lg shadow-md p-6 mb-8 mx-auto min-w-[400px] max-w-[400px]">
+                <form id="periodForm" class="space-y-6">
+                    <div>
+                        <label for="lastPeriodDate" class="block text-sm font-medium text-gray-700 mb-1">Last
+                            Menstrual Date</label>
+                        <input type="date" id="lastPeriodDate"
+                            class="date-input w-full px-4 py-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            required />
+                    </div>
+                    <div>
+                        <label for="cycleLengthInput" class="block text-sm font-medium text-gray-700 mb-1">Average
+                            Cycle Duration (days)</label>
+                        <input type="number" id="cycleLengthInput" min="21" max="35" value="28"
+                            class="w-full px-4 py-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                            required />
+                    </div>
+                    <button type="submit"
+                        class="w-full bg-gradient-to-r from-primary to-secondary text-white py-3 rounded-button font-medium hover:opacity-90 transition-opacity whitespace-nowrap">
+                        Calculate Next Cycle
+                    </button>
+                </form>
+                <div id="result" class="hidden mt-6">
+                    <h2 class="text-lg font-semibold text-gray-800">Next Cycle Dates</h2>
+                    <p class="text-sm text-gray-600">Your next cycle is expected to start on:
+                        <span id="nextCycleDate" class="font-bold text-primary"></span>
+                    </p>
+                </div>
+                <div id="what-ai-can-say" class="hidden mt-6 max-h-48 overflow-y-auto">
+                    <p id="pleaseWait" class="text-sm text-gray-600">Please wait...</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Feedback Modal -->
+    <div id="feedbackModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-medium text-gray-800">Share Your Feedback</h3>
+                <button
+                    class="closeModal w-8 h-8 flex items-center justify-center rounded-full bg-pink-50 text-gray-500 hover:bg-pink-100 transition-colors">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <form id="feedbackForm" class="space-y-6">
+                <div>
+                    <label for="feedbackName" class="block text-sm font-medium text-gray-700 mb-1">Your Name</label>
+                    <input type="text" id="feedbackName"
+                        class="w-full px-4 py-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required />
+                </div>
+                <div>
+                    <label for="feedbackEmail" class="block text-sm font-medium text-gray-700 mb-1">Your Email</label>
+                    <input type="email" id="feedbackEmail"
+                        class="w-full px-4 py-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required />
+                </div>
+                <div>
+                    <label for="feedbackText" class="block text-sm font-medium text-gray-700 mb-1">Feedback</label>
+                    <textarea id="feedbackText" rows="4"
+                        class="w-full px-4 py-2 border border-gray-200 rounded focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                        required></textarea>
+                </div>
+                <button type="submit"
+                    class="w-full bg-primary text-white py-3 rounded-button font-medium hover:opacity-90 transition-opacity whitespace-nowrap">
+                    Submit Feedback
+                </button>
+            </form>
+        </div>
+    </div>
+    <!-- Chatbot Modal -->
+    <div id="chatbotModal" class="modal">
+        <div class="modal-content">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-medium text-gray-800">Health Consultant</h3>
+                <button
+                    class="closeModal w-8 h-8 flex items-center justify-center rounded-full bg-pink-50 text-gray-500 hover:bg-pink-100 transition-colors">
+                    <i class="ri-close-line"></i>
+                </button>
+            </div>
+            <div id="chatMessages" class="space-y-4 mb-4 max-h-80 overflow-y-auto">
+                <div class="flex items-start">
+                    <div class="w-8 h-8 flex items-center justify-center rounded-full bg-primary text-white mr-2">
+                        <i class="ri-robot-line"></i>
+                    </div>
+                    <div class="bg-pink-50 rounded-lg p-3 max-w-[80%]">
+                        <p class="text-sm text-gray-700">
+                            Welcome. I'm your personal health consultant. How may I assist
+                            you with your cycle tracking today?
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="flex items-center">
+                <input type="text" id="chatInput"
+                    class="flex-1 px-4 py-2 border border-gray-200 rounded-l focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent"
+                    placeholder="Type your question..." />
+                <button id="sendMessage"
+                    class="bg-primary text-white px-4 py-2 rounded-r-button hover:opacity-90 transition-opacity whitespace-nowrap">
+                    <i class="ri-send-plane-fill"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- notification -->
+    <div id="notification" class="fixed top-4 right-4 bg-white shadow-lg rounded-lg p-4 z-50 flex items-center w-96"
+        style="display: none;">
+        <div class="w-8 h-8 flex items-center justify-center rounded-full bg-primary text-white mr-3">
+            <i class="ri-check-line"></i>
+        </div>
+        <div>
+            <h4 class="text-sm font-medium text-gray-800" id="noti-heading"></h4>
+            <p class="text-xs text-gray-600" id="noti-text"></p>
+        </div>
+    </div>
+
+    <script>
+        // Modal functionality
+        const feedbackBtn = document.getElementById("feedbackBtn");
+        const chatbotBtn = document.getElementById("chatbotBtn");
+        const feedbackModal = document.getElementById("feedbackModal");
+        const chatbotModal = document.getElementById("chatbotModal");
+        const closeButtons = document.querySelectorAll(".closeModal");
+        feedbackBtn.addEventListener("click", () => {
+            feedbackModal.style.display = "block";
+        });
+        chatbotBtn.addEventListener("click", () => {
+            chatbotModal.style.display = "block";
+        });
+        closeButtons.forEach((button) => {
+            button.addEventListener("click", () => {
+                feedbackModal.style.display = "none";
+                chatbotModal.style.display = "none";
+            });
+        });
+        window.addEventListener("click", (e) => {
+            if (e.target === feedbackModal) {
+                feedbackModal.style.display = "none";
+            }
+            if (e.target === chatbotModal) {
+                chatbotModal.style.display = "none";
+            }
+        });
+
+        // Chatbot
+        const chatMessages = document.getElementById("chatMessages");
+        const chatInput = document.getElementById("chatInput");
+        const sendMessage = document.getElementById("sendMessage");
+        function addMessage(message, isUser = false) {
+            const messageEl = document.createElement("div");
+            messageEl.className = "flex items-start";
+            if (isUser) {
+                messageEl.innerHTML = `<div class="ml-auto bg-gray-100 rounded-lg p-3 max-w-[80%]">
+                <p class="text-sm text-gray-700">${message}</p></div>
+                <div class="w-8 h-8 flex items-center justify-center rounded-full bg-gray-300 text-white ml-2">
+                <i class="ri-user-line"></i>
+            </div>`;
+            } else {
+                messageEl.innerHTML = `<div class="w-8 h-8 flex items-center justify-center rounded-full bg-primary text-white mr-2">
+                    <i class="ri-robot-line"></i>
+                     </div>
+                    <div class="bg-pink-50 rounded-lg p-3 max-w-[80%]">
+                <p class="text-sm text-gray-700">${message}</p>
+                </div>`;
+            }
+
+            chatMessages.appendChild(messageEl);
+            chatMessages.scrollTop = chatMessages.scrollHeight;
+        }
+
+        sendMessage.addEventListener("click", async () => {
+            const message = chatInput.value.trim();
+            if (message) {
+                addMessage(message, true);
+                const botMessage = await aiChatBot(message);
+                addMessage(botMessage);
+                chatInput.value = "";
+            }
+        });
+
+        chatInput.addEventListener("keypress", (e) => {
+            if (e.key === "Enter") {
+                sendMessage.click();
+            }
+        });
+
+        document.getElementById("periodForm").addEventListener("submit", async (e) => {
+            e.preventDefault();
+            const lastPeriodDate = document.getElementById("lastPeriodDate").value;
+            const cycleLength = document.getElementById("cycleLengthInput").value;
+
+            if (!lastPeriodDate || !cycleLength) {
+                alert("Please fill out all fields.");
+                return;
+            }
+            const startDate = new Date(lastPeriodDate);
+            const cycleLengthDays = parseInt(cycleLength);
+            const nextCycleDate = new Date(startDate);
+            nextCycleDate.setDate(nextCycleDate.getDate() + cycleLengthDays);
+            const resultDiv = document.getElementById("result");
+            const nextCycleDateEl = document.getElementById("nextCycleDate");
+            nextCycleDateEl.textContent = nextCycleDate.toDateString();
+            resultDiv.classList.remove("hidden");
+
+            const tipsSection = document.getElementById("what-ai-can-say");
+            tipsSection.classList.remove("hidden");
+
+            const aiResponse = await aiChatBot(`My last period date is ${lastPeriodDate} and my cycle length is ${cycleLength} days. can you give me next cycle dates? and  Can you provide me with some tips? give me like html that esay to put in editor and dont give me any other text like( * **) ${'```html'}. I just want the html code.`);
+
+            const tips = document.createElement("div");
+
+            // replace ```html and ``` with empty string
+            const cleanResponse = aiResponse.replace(/```html/g, "").replace(/```/g, "");
+            tips.innerHTML = cleanResponse;
+            tipsSection.appendChild(tips);
+
+            const pleaseWait = document.getElementById("pleaseWait");
+            pleaseWait.classList.add("hidden");
+
+            const notification = document.getElementById("notification");
+            const notiHeading = document.getElementById("noti-heading");
+            const notiText = document.getElementById("noti-text");
+            notiHeading.textContent = "Cycle Dates Calculated!";
+            notiText.textContent = "Your next cycle dates are displayed.";
+            notification.style.display = "flex";
+            setTimeout(() => {
+                notification.style.display = "none";
+            }, 3000);
+
+        });
+
+
+        document.getElementById("feedbackForm").addEventListener("submit", (e) => {
+            e.preventDefault();
+            const name = document.getElementById("feedbackName").value;
+            const email = document.getElementById("feedbackEmail").value;
+            const feedback = document.getElementById("feedbackText").value;
+
+            const subject = 'Feedback on Menstrual Cycle Tracker';
+            const body = `Name: ${name}\nEmail: ${email}\n\nMessage:\n${feedback}`;
+
+            window.location.href = `mailto:<-- your mail id -->?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+            // Show notification
+            const notification = document.getElementById("notification");
+            const notiHeading = document.getElementById("noti-heading");
+            const notiText = document.getElementById("noti-text");
+            notiHeading.textContent = "Feedback Submitted!";
+            notiText.textContent = "Thank you for your feedback!";
+            notification.style.display = "flex";
+            setTimeout(() => {
+                notification.style.display = "none";
+            }, 3000);
+            feedbackModal.style.display = "none";
+        });
+
+
+        async function aiChatBot(message) {
+            try {
+                const response = await fetch("<- your api url ->, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json",
+                    },
+                    body: JSON.stringify({ text: message }),
+                });
+                const data = await response.json();
+                return data.content;
+            } catch (error) {
+                console.error("Error:", error);
+                return "Error generating response.";
+            }
+        }
+    </script>
+</body>
+
+</html>
